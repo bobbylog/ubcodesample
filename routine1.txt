@@ -1,0 +1,82 @@
+CREATE DEFINER=`root`@`localhost` PROCEDURE `ctm_proc_create_user_individual_plan` ()  BEGIN
+
+DECLARE i INT;
+DECLARE MaxUser INT;
+DECLARE UserGap INT;
+DECLARE CurUserCnt INT;
+
+SET i=1;
+
+SET MaxUser=1;
+
+   SET CurUserCnt=(select count(userid) from ctm_user where username like 'budgetuser%');
+
+  SET UserGap=MaxUser-CurUserCnt;
+  SET i=CurUserCnt+1;
+  
+  WHILE i <= MaxUser DO
+  
+        INSERT INTO `ctm_user` (`profileid`, `username`, `password`, `passphrase`, `description`, `status`) VALUES 
+('1', concat('budgetuser',i),'Password@', '', 'budgetuser', 'Enabled');
+       
+       SET  i = i + 1;
+  
+ END WHILE;
+
+END$$
+
+CREATE DEFINER=`root`@`localhost` PROCEDURE `ctm_proc_create_user_family_plan` ()  NO SQL
+BEGIN
+
+DECLARE i INT;
+DECLARE MaxUser INT;
+DECLARE UserGap INT;
+DECLARE CurUserCnt INT;
+
+SET i=1;
+
+SET MaxUser=3;
+
+   SET CurUserCnt=(select count(userid) from ctm_user where username like 'budgetuser%');
+
+  SET UserGap=MaxUser-CurUserCnt;
+  SET i=CurUserCnt+1;
+  
+  WHILE i <= MaxUser DO
+  
+        INSERT INTO `ctm_user` (`profileid`, `username`, `password`, `passphrase`, `description`, `status`) VALUES 
+('1', concat('budgetuser',i),'Password@', '', 'budgetuser', 'Enabled');
+       
+       SET  i = i + 1;
+  
+ END WHILE;
+
+END$$
+
+CREATE DEFINER=`bobbylog`@`localhost` PROCEDURE `ctm_proc_rejecttransact` (IN `p_transid` VARCHAR(25), IN `p_PReason` TEXT, IN `p_POwner` VARCHAR(50))  BEGIN
+	
+START TRANSACTION;
+     
+    INSERT INTO `ctm_transact_reject_reason` (`ctyearid`, `batchdate`, `transacttype`, `transactdate`, `amount`, `transactaccfrom`, `transactaccto`, `transactdesc`, `transactnote`, `rejectdate`, `rejectreason`, `rejectedby`)
+    SELECT `ctyearid`, `batchdate`, `transacttype`, `transactdate`, `amount`, `transactaccfrom`, `transactaccto`, `transactdesc`, `transactnote`, CURRENT_TIMESTAMP(), p_PReason, p_POwner from ctm_transact_batch
+    where batchid=p_transid;
+    
+      INSERT INTO `ctm_mail_message` (`fromsender`, `tosender`, `subject`, `message`, `datesent`, `mailstatus`) VALUES ('noreply@serpaone.com', getBudgetFollowrersFromTransID(p_transid),'Transaction is rejected',
+concat('Your transaction in the amount of ', getTransactAmount(p_transid), ' from account ',getTransactAccName(p_transid),' of budget ', getTransactAccBudgetName(p_transid), ' has been rejected by the budget administrator for the following reason: ',p_PReason, '.') ,CURRENT_TIMESTAMP(), '0');
+
+ /*DELETE from ctm_transact_batch
+    WHERE batchid=p_transid;*/
+    update ctm_transact_batch set processed=2 WHERE batchid=p_transid;
+    
+     
+COMMIT;
+     
+    -- call ctm_proc_reloadbudget_info();
+    
+
+    
+    
+
+    
+END$$
+
